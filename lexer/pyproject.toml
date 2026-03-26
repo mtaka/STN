@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "stn-lexer"
+version = "0.1.0"
+description = "STN Lexer — parse STN text into an AST"
+requires-python = ">=3.11"
+
+[tool.hatch.build.targets.wheel]
+packages = ["stn"]

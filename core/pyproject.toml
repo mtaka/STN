@@ -1,0 +1,24 @@
+[project]
+name = "stn-core"
+version = "0.1.0"
+description = "STN Core — structural evaluation engine for STN AST"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "prompt-toolkit>=3.0.52",
+    "pyreadline3>=3.5.4",
+    "stn-lexer",
+]
+
+[tool.uv.sources]
+stn-lexer = { workspace = true }
+
+[project.scripts]
+stn-repl = "stn_core.repl:main"
+
+[dependency-groups]
+dev = ["pytest>=8"]
+
+[build-system]
+requires = ["uv_build>=0.9.21,<0.10.0"]
+build-backend = "uv_build"
