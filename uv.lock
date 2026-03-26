@@ -5,6 +5,7 @@ requires-python = ">=3.11"
 [manifest]
 members = [
     "stn-core",
+    "stn-facade",
     "stn-lexer",
 ]
 
@@ -111,6 +112,25 @@ requires-dist = [
     { name = "pyreadline3", specifier = ">=3.5.4" },
     { name = "stn-lexer", editable = "lexer" },
 ]
+
+[package.metadata.requires-dev]
+dev = [{ name = "pytest", specifier = ">=8" }]
+
+[[package]]
+name = "stn-facade"
+version = "0.1.0"
+source = { editable = "facade" }
+dependencies = [
+    { name = "stn-core" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "stn-core", editable = "core" }]
 
 [package.metadata.requires-dev]
 dev = [{ name = "pytest", specifier = ">=8" }]
