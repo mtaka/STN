@@ -54,8 +54,56 @@ class VEnum:
 class VList:
     items: list["Value"]
 
+    def __post_init__(self) -> None:
+        # Non-field DOM references — excluded from __eq__ / __repr__
+        self._parent: "VEntity | VList | _Empty | None" = None
+        self._document: "object | None" = None  # Document (forward ref)
+
     def __str__(self) -> str:
         return "[" + ", ".join(str(v) for v in self.items) + "]"
+
+    @property
+    def parent(self) -> "VEntity | VList | None":
+        return self._parent  # type: ignore[return-value]
+
+    @property
+    def document(self) -> "object | None":
+        return self._document
+
+    def locate(self, path: "str | int", callback=lambda x: x):
+        """Yield (callback(result), path_str) pairs via the locator."""
+        from .locator import locate_value
+        return locate_value(self, path, callback)
+
+    def get(self, path: "str | int") -> "list":
+        """Return all locate() results as a list."""
+        return [v for v, _ in self.locate(path)]
+
+    def get_first(self, path: "str | int") -> "Value":
+        """Return the first locate() result, or Empty."""
+        for v, _ in self.locate(path):
+            return v  # type: ignore[return-value]
+        return Empty
+
+    @property
+    def children(self) -> "list[Value]":
+        """Direct child values (all items in the list)."""
+        return list(self.items)
+
+    def to_obj(self):
+        """Convert to a plain Python object (list for VList)."""
+        from .projector import value_to_obj
+        return value_to_obj(self)
+
+    def to_json(self, **kwargs) -> str:
+        """Serialize to a JSON string."""
+        from .projector import value_to_json
+        return value_to_json(self, **kwargs)
+
+    def to_yaml(self, **kwargs) -> str:
+        """Serialize to a YAML string."""
+        from .projector import value_to_yaml
+        return value_to_yaml(self, **kwargs)
 
 
 @dataclass
@@ -66,10 +114,58 @@ class VEntity:
     props: dict[str, "Value"] = field(default_factory=dict)
     reserved: dict[str, "Value"] = field(default_factory=dict)
 
+    def __post_init__(self) -> None:
+        # Non-field DOM references — excluded from __eq__ / __repr__
+        self._parent: "VEntity | VList | _Empty | None" = None
+        self._document: "object | None" = None  # Document (forward ref)
+
     def __str__(self) -> str:
         if self.type_name:
             return f"VEntity({self.type_name})"
         return "VEntity"
+
+    @property
+    def parent(self) -> "VEntity | VList | None":
+        return self._parent  # type: ignore[return-value]
+
+    @property
+    def document(self) -> "object | None":
+        return self._document
+
+    def locate(self, path: "str | int", callback=lambda x: x):
+        """Yield (callback(result), path_str) pairs via the locator."""
+        from .locator import locate_value
+        return locate_value(self, path, callback)
+
+    def get(self, path: "str | int") -> "list":
+        """Return all locate() results as a list."""
+        return [v for v, _ in self.locate(path)]
+
+    def get_first(self, path: "str | int") -> "Value":
+        """Return the first locate() result, or Empty."""
+        for v, _ in self.locate(path):
+            return v  # type: ignore[return-value]
+        return Empty
+
+    @property
+    def children(self) -> "list[Value]":
+        """Direct child values (fields + props, in definition order)."""
+        return list(self.fields.values()) + list(self.props.values())
+
+    def to_obj(self):
+        """Convert to a plain Python object (dict or list)."""
+        from .projector import value_to_obj
+        return value_to_obj(self)
+
+    def to_json(self, **kwargs) -> str:
+        """Serialize to a JSON string."""
+        from .projector import value_to_json
+        return value_to_json(self, **kwargs)
+
+    def to_yaml(self, **kwargs) -> str:
+        """Serialize to a YAML string."""
+        from .projector import value_to_yaml
+        return value_to_yaml(self, **kwargs)
 
 
 class _Empty:

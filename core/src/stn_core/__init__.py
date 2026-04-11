@@ -19,6 +19,7 @@ from .typedef import TypeDef, MemberDef
 from .sobject import SObject, SEntry
 from .errors import STNCoreError
 from .repl import STNRepl
+from .locator import locate_value, locate_document
 
 __all__ = [
     "evaluate",
@@ -39,4 +40,6 @@ __all__ = [
     "SEntry",
     "STNCoreError",
     "STNRepl",
+    "locate_value",
+    "locate_document",
 ]

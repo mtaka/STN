@@ -12,6 +12,7 @@ from .typedef import TypeDef, MemberDef
 from .sobject import SObject, SEntry, SValue
 from .reader import (
     split_statements,
+    split_chunks,
     parse_chunk_tokens,
     parse_member_defs,
     unwrap_literal,
@@ -32,12 +33,14 @@ from .setter import apply_setter, apply_batch_setter
 
 def evaluate(result) -> Document:
     """Evaluate a ParseResult (from stn.parse) and return a new Document."""
+    from .locator import _finalize_doc
     env = Environment()
     doc = Document(environment=env)
     entries = _evaluate_into(result, env)
     for key, val in entries:
         doc.results.append(val)
         doc._doc_entries.append((key, val))
+    _finalize_doc(doc)
     return doc
 
 
@@ -375,11 +378,21 @@ def _node_to_ventity(
     if td and td.reserved:
         entity.reserved.update(td.reserved)
 
-    entries = parse_chunk_tokens(node.items)
+    chunks = split_chunks(node.items)
+    if len(chunks) == 1:
+        entries = parse_chunk_tokens(chunks[0])
+    else:
+        # `;`-separated chunks → each becomes a positional SObject entry
+        entries = [
+            SEntry(key=None, value=SObject(parse_chunk_tokens(chunk)))
+            for chunk in chunks
+            if chunk
+        ]
 
     has_keys = any(e.key is not None for e in entries)
 
     if has_keys:
+        pos_idx = 0
         for entry in entries:
             if entry.key == "__":
                 # Only set if NOT already inherited from TypeDef (non-overridable)
@@ -392,6 +405,10 @@ def _node_to_ventity(
             if entry.key is not None:
                 member = _find_member(td, entry.key) if td else None
                 entity.fields[entry.key] = _svalue_to_value(entry.value, member, env)
+            else:
+                # Positional entry mixed with keyed entries → store as _N
+                entity.fields[f"_{pos_idx}"] = _svalue_to_value(entry.value, None, env)
+                pos_idx += 1
     else:
         # Positional args
         if td:

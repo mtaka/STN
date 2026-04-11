@@ -79,6 +79,9 @@ def split_statements(items: list) -> list[list]:
     - Explicit ``;`` SIGIL tokens
     - Implicit: ``@`` or ``#`` SIGIL at word_head=True after an item
       that has word_tail=True (a new top-level expression starts).
+    - Implicit: ``:key`` (word_head=True, word_tail=False) at a word boundary
+      when the current statement does NOT start with ``@`` (i.e. it is not a
+      variable/type definition where ``:key`` is a parameter, not a top-level key).
     """
     statements: list[list] = []
     current: list = []
@@ -107,6 +110,26 @@ def split_statements(items: list) -> list[list]:
             statements.append(current)
             current = []
 
+        # Implicit split: new :key block at a word boundary.
+        # Split when the current statement is either:
+        #   (a) not a @-definition at all, OR
+        #   (b) a @-definition that already received its main value (a Node),
+        #       meaning the definition is complete and :key starts a new statement.
+        # This avoids splitting inside "@@x :field val" (no Node yet)
+        # but does split after "@%Type(...)" where the Node is already consumed.
+        elif (
+            isinstance(item, Token)
+            and item.type == TokenType.SIGIL
+            and item.value == ":"
+            and item.word_head
+            and not item.word_tail   # ":name" glued, not standalone ":"
+            and current
+            and _last_word_tail(current)
+            and (not _starts_with_at(current) or _at_definition_has_value(current))
+        ):
+            statements.append(current)
+            current = []
+
         current.append(item)
 
     if current:
@@ -122,6 +145,32 @@ def _last_word_tail(items: list) -> bool:
     if isinstance(last, (Token, Node)):
         return last.word_tail
     return True
+
+
+def _starts_with_at(items: list) -> bool:
+    """Return True if the statement begins with a ``@`` sigil (definition statement)."""
+    if not items:
+        return False
+    item = items[0]
+    return (
+        isinstance(item, Token)
+        and item.type == TokenType.SIGIL
+        and item.value == "@"
+    )
+
+
+def _at_definition_has_value(items: list) -> bool:
+    """Return True if a ``@``-starting statement already contains a Node.
+
+    A Node signals that the main value of the definition (e.g. the arg-list
+    of ``@%Type(...)`` or the body of ``@@x (...)``) has been provided,
+    so the statement is structurally complete and a following ``:key``
+    starts a new top-level statement rather than being a parameter.
+    """
+    for item in items:
+        if isinstance(item, Node):
+            return True
+    return False
 
 
 # ---------------------------------------------------------------------------
@@ -154,7 +203,16 @@ def _item_to_svalue(item) -> SValue:
 
 
 def _node_to_sobject(node: Node) -> SObject:
-    return SObject(parse_chunk_tokens(node.items))
+    chunks = split_chunks(node.items)
+    if len(chunks) == 1:
+        return SObject(parse_chunk_tokens(chunks[0]))
+    # `;`-separated chunks → each becomes a positional entry
+    entries = [
+        SEntry(key=None, value=SObject(parse_chunk_tokens(chunk)))
+        for chunk in chunks
+        if chunk  # skip empty chunks from trailing ;
+    ]
+    return SObject(entries)
 
 
 # ---------------------------------------------------------------------------

@@ -1,2 +1,2 @@
 [tool.uv.workspace]
-members = ["lexer", "core", "facade"]
+members = ["lexer", "core", "facade", "models"]
